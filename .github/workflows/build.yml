@@ -1,70 +1,100 @@
-name: Build & Release
+name: Build
 
 on:
   push:
     branches: ["**"]
     tags: ["v*.*.*"]
   pull_request:
-
-env:
-  FQBN: esp32:esp32:d1_mini32
+    branches: ["**"]
 
 jobs:
   build:
+    name: Compile sketch
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$HOME/bin" >> $GITHUB_PATH
+        uses: arduino/setup-arduino-cli@v2
 
-      - name: Configure arduino-cli
-        run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls \
-            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+      - name: Cache Arduino data
+        uses: actions/cache@v5
+        with:
+          path: ~/.arduino15
+          key: arduino-${{ runner.os }}-esp32-3.3.7
 
-      - name: Install ESP32 board package
+      - name: Install ESP32 platform
         run: |
+          arduino-cli config init --overwrite
+          arduino-cli config set board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.7
 
-      - name: Get version
-        id: version
-        run: |
-          VERSION=$(grep 'FIRMWARE_VERSION' version.h | grep -oP '"[^"]+"' | tr -d '"')
-          # Strip -dev suffix on tag builds
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            VERSION="${VERSION/-dev/}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-
       - name: Compile sketch
-        run: |
-          arduino-cli compile \
-            --fqbn "${{ env.FQBN }}" \
-            --output-dir ./out \
-            .
+        run: arduino-cli compile --fqbn esp32:esp32:d1_mini32 --export-binaries .
 
-      - name: Rename binary
+      - name: Rename binary with version
         run: |
-          mv out/*.bin "out/template-esp32-thing-v${{ steps.version.outputs.version }}.bin" 2>/dev/null || true
-          ls out/
+          MAJOR=$(grep '#define FW_VERSION_MAJOR' version.h | awk '{print $3}')
+          MINOR=$(grep '#define FW_VERSION_MINOR' version.h | awk '{print $3}')
+          PATCH=$(grep '#define FW_VERSION_PATCH' version.h | awk '{print $3}')
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+          VERSION="${MAJOR}.${MINOR}.${PATCH}-dev-${TIMESTAMP}"
+          echo "FW_VERSION=${VERSION}" >> $GITHUB_ENV
+          cp build/esp32.esp32.d1_mini32/template-esp32-thing.ino.bin \
+             template-esp32-thing-v${VERSION}.bin
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v6
         with:
-          name: "template-esp32-thing-v${{ steps.version.outputs.version }}"
-          path: "out/template-esp32-thing-v${{ steps.version.outputs.version }}.bin"
+          name: template-esp32-thing-v${{ env.FW_VERSION }}
+          path: template-esp32-thing-v${{ env.FW_VERSION }}.bin
+
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Cache Arduino data
+        uses: actions/cache@v5
+        with:
+          path: ~/.arduino15
+          key: arduino-${{ runner.os }}-esp32-3.3.7
+
+      - name: Install ESP32 platform
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config set board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.7
+
+      - name: Compile release build
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          arduino-cli compile --fqbn esp32:esp32:d1_mini32 --export-binaries .
+          cp build/esp32.esp32.d1_mini32/template-esp32-thing.ino.bin \
+             template-esp32-thing-v${VERSION}.bin
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "out/template-esp32-thing-v${{ steps.version.outputs.version }}.bin"
-          name: "v${{ steps.version.outputs.version }}"
-          generate_release_notes: true
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "v${VERSION}" \
+            --generate-notes \
+            "template-esp32-thing-v${VERSION}.bin"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -44,7 +44,7 @@ function(add_sketch_test target_name source_file)
         GTest::gtest_main
     )
     gtest_discover_tests(${target_name}
-        XML_OUTPUT_DIR ${CMAKE_BINARY_DIR}/test-results
+        XML_OUTPUT_DIR ${CMAKE_BINARY_DIR}
     )
 endfunction()
 
