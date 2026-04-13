@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get install -y cmake ninja-build
+
+      - name: Cache test build
+        uses: actions/cache@v4
+        with:
+          path: tests/build
+          key: tests-build-${{ runner.os }}-${{ hashFiles('tests/CMakeLists.txt') }}
+          restore-keys: tests-build-${{ runner.os }}-
+
+      - name: Build tests
+        run: |
+          cmake -S tests -B tests/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build tests/build
+
+      - name: Run tests
+        run: |
+          cd tests/build && ctest --output-on-failure --no-compress-output -T Test
+
+      - name: Report test results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: GoogleTest Results
+          path: tests/build/test-results/*.xml
+          reporter: java-junit
+          fail-on-error: true

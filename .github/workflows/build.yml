@@ -1,0 +1,70 @@
+name: Build & Release
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*.*.*"]
+  pull_request:
+
+env:
+  FQBN: esp32:esp32:d1_mini32
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install arduino-cli
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Configure arduino-cli
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+      - name: Install ESP32 board package
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.7
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep 'FIRMWARE_VERSION' version.h | grep -oP '"[^"]+"' | tr -d '"')
+          # Strip -dev suffix on tag builds
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${VERSION/-dev/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Compile sketch
+        run: |
+          arduino-cli compile \
+            --fqbn "${{ env.FQBN }}" \
+            --output-dir ./out \
+            .
+
+      - name: Rename binary
+        run: |
+          mv out/*.bin "out/template-esp32-thing-v${{ steps.version.outputs.version }}.bin" 2>/dev/null || true
+          ls out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "template-esp32-thing-v${{ steps.version.outputs.version }}"
+          path: "out/template-esp32-thing-v${{ steps.version.outputs.version }}.bin"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "out/template-esp32-thing-v${{ steps.version.outputs.version }}.bin"
+          name: "v${{ steps.version.outputs.version }}"
+          generate_release_notes: true
