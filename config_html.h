@@ -9,8 +9,10 @@ static const char CONFIG_HTML[] PROGMEM = R"rawhtml(<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ESP32 Thing Config</title>
+<!-- Project emoji: change ⚙️ in the favicon and h1 to match your project -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚙️</text></svg>">
 <style>
-  :root{--bg:#1a1a2e;--card:#16213e;--accent:#0f3460;--hi:#e94560;--txt:#eee;--muted:#aaa;--inp:#0d2137;}
+  :root{--bg:#1a1a1a;--card:#2a2a2a;--accent:#444;--hi:#1e7a4a;--dirty:#b06000;--txt:#eee;--muted:#aaa;--inp:#2a2a2a;}
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:1rem;}
   h1{font-size:1.4rem;margin-bottom:1rem;color:var(--hi);}
@@ -25,8 +27,8 @@ static const char CONFIG_HTML[] PROGMEM = R"rawhtml(<!DOCTYPE html>
   .row>div>input{margin-bottom:0;}
   button{background:var(--accent);color:var(--txt);border:none;padding:.55rem 1.25rem;border-radius:4px;cursor:pointer;font-size:.9rem;}
   button:hover{background:var(--hi);}
-  #saveBtn{width:100%;padding:.65rem;font-size:1rem;background:var(--accent);}
-  #saveBtn.dirty{background:var(--hi);}
+  #saveBtn{width:100%;padding:.65rem;font-size:1rem;background:var(--hi);}
+  #saveBtn.dirty{background:var(--dirty);}
   #scanBtn{white-space:nowrap;}
   #scanResults{font-size:.8rem;color:var(--muted);margin-top:.5rem;display:none;}
   .scan-item{cursor:pointer;padding:.25rem .5rem;border-radius:3px;}
@@ -37,7 +39,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawhtml(<!DOCTYPE html>
 </style>
 </head>
 <body>
-<h1>ESP32 Thing</h1>
+<h1>⚙️ ESP32 Thing</h1>
 <div class="version">Firmware {{VERSION}}</div>
 
 <form id="cfg" method="POST" action="/save">

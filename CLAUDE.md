@@ -29,6 +29,10 @@ change to keep the test suite green throughout.
 - [ ] **Update `config_html.h`** — replace GPIO-specific form fields with fields
       that match your new config variables. Keep the WiFi and OTA sections.
 
+- [ ] **Update the project emoji** — change `⚙️` in the `<!-- Project emoji -->`
+      comment in `config_html.h` to an emoji that suits your project. Update both
+      the `<link rel="icon">` favicon and the `<h1>` tag.
+
 - [ ] **Update `version.h`** — reset to `0.1.0-dev` for your new project.
 
 - [ ] **Update `build.yml` FQBN** — change `esp32:esp32:d1_mini32` in the `env`
